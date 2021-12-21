@@ -1,0 +1,54 @@
+﻿@using System.IO
+
+<table class="table">
+    <tr>
+        <td>Name</td>
+        <td><input type="text" @bind="Song.Name" /></td>
+    </tr>
+    <tr>
+        <td>Upload</td>
+        <td>
+            <p>
+                <InputFile OnChange="LoadSong" />
+                <button @onclick=@RemoveSong>Remove</button>
+            </p>
+        </td>
+
+    </tr>   
+</table>
+
+@code {
+    [Parameter]
+    public Song Song { get; set; }
+
+    [Parameter]
+    public EventCallback<Song> OnSongChanged { get; set; }
+
+    [Parameter]
+    public EventCallback<Song> OnSongRemoved { get; set; }
+
+    async Task LoadSong(InputFileChangeEventArgs e)
+    {
+        var folderName = Path.Combine("wwwroot", "songs");//ruta de almacenamiento
+        var pathToSave = Path.Combine(Directory.GetCurrentDirectory(), folderName);//obtener direccion relativa donde se almacenaran los archivos
+        var fullPath = Path.Combine(pathToSave, e.File.Name.Replace(" ", "-"));//combinar el path con el nombre, y ademas remover los espacios por guiones con replace
+
+        //obtener la extension, el punto de partida sera todo el nombre -3 lugares y apartartir de ahi moverme 3 lugares 
+        Song.Extension = e.File.Name.Substring(e.File.Name.Count() - 3, 3);
+        Song.Path = e.File.Name.Replace(" ", "-");
+
+        using (var ms = new MemoryStream())
+        {
+            //copiar el string al memorystram, intmax es para no tener errores de los bytes maximos permitidos
+            await e.File.OpenReadStream(Int32.MaxValue).CopyToAsync(ms);
+            await File.WriteAllBytesAsync(fullPath, ms.ToArray());//escribir todos los bytes en el disco duro
+        }
+
+        await OnSongChanged.InvokeAsync(Song);
+    }
+
+    async Task RemoveSong()
+    {
+        await OnSongRemoved.InvokeAsync(Song);
+    }
+}
